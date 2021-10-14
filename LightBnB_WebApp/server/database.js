@@ -1,4 +1,3 @@
-const bcrypt = require('bcrypt');
 const properties = require('./json/properties.json');
 const users = require('./json/users.json');
 const { Pool } = require('pg');
@@ -62,10 +61,6 @@ const addUser =  function(user) {
   user.id = userId;
   users[userId] = user;
   return Promise.resolve(user); */
-  //bcrypt.hashSync("purple-monkey-dinosaur", 10)
-  const saltRounds = 10;
-  const salt = bcrypt.genSaltSync(saltRounds);
-
   const queryString = `
     INSERT INTO users (name, email, password)
     VALUES($1, $2, $3)
@@ -86,7 +81,19 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  const queryString = `
+    SELECT p.*, r.start_date, r.end_date, AVG(pr.rating) as average_rating
+    FROM properties p
+      JOIN reservations r ON p.id = r.property_id
+      JOIN property_reviews pr ON p.id = pr.property_id
+    WHERE r.guest_id = $1
+    GROUP BY p.id, r.id
+    LIMIT $2
+  `;
+  return pool
+    .query(queryString, [guest_id, limit])
+    .then((result) => result.rows)
+    .catch(() => null);
 };
 exports.getAllReservations = getAllReservations;
 
